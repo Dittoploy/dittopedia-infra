@@ -5,9 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: dittopedia-back
     ports:
-      - "3000:3000"
+      - "${BACK_PORT:-3000}:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
     restart: unless-stopped
 
   front:
@@ -16,9 +17,11 @@ services:
       dockerfile: Dockerfile
     container_name: dittopedia-front
     ports:
-      - "3001:3000"
+      - "${FRONT_PORT:-3001}:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     depends_on:
       - back
     restart: unless-stopped
