@@ -12,11 +12,11 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
       - DATABASE_URL=postgresql://${POSTGRES_USER:-dittopedia}:${POSTGRES_PASSWORD:-dittopedia}@postgres:5432/${POSTGRES_DB:-dittopedia}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://valkey:6379
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      valkey:
         condition: service_healthy
     restart: unless-stopped
 
@@ -69,15 +69,15 @@ services:
       retries: 5
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    container_name: dittopedia-redis
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: dittopedia-valkey
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${VALKEY_PORT:-6379}:6379"
     volumes:
-      - redis_data:/data
+      - valkey_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -117,7 +117,7 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
+  valkey_data:
   sonarqube_data:
   sonarqube_extensions:
   sonarqube_logs:
