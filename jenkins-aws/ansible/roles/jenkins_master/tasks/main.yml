@@ -1,0 +1,73 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install Java 17
+  apt:
+    name: openjdk-17-jdk
+    state: present
+
+- name: Add Jenkins GPG key
+  apt_key:
+    url: https://pkg.jenkins.io/debian/jenkins.io-2023.key
+    state: present
+
+- name: Add Jenkins apt repository
+  apt_repository:
+    repo: 'deb https://pkg.jenkins.io/debian-stable binary/'
+    state: present
+    filename: jenkins
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Ensure /var/jenkins_home exists
+  file:
+    path: /var/jenkins_home
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: '0755'
+
+- name: Format /dev/xvdb if needed
+  filesystem:
+    fstype: ext4
+    dev: /dev/xvdb
+  when: ansible_devices['xvdb']['partitions']|length == 0
+
+- name: Mount /dev/xvdb on /var/jenkins_home
+  mount:
+    path: /var/jenkins_home
+    src: /dev/xvdb
+    fstype: ext4
+    opts: defaults
+    state: mounted
+
+- name: Set permissions for /var/jenkins_home
+  file:
+    path: /var/jenkins_home
+    owner: jenkins
+    group: jenkins
+    mode: '0755'
+    recurse: yes
+
+- name: Ensure Jenkins is enabled and started
+  service:
+    name: jenkins
+    enabled: yes
+    state: started
+
+- name: Ensure UFW is installed
+  apt:
+    name: ufw
+    state: present
+
+- name: Allow 8080/tcp in UFW
+  ufw:
+    rule: allow
+    port: 8080
+    proto: tcp
