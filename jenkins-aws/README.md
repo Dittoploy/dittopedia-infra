@@ -38,69 +38,28 @@ terraform apply
 
 Si vous obtenez une erreur liée au Free Tier ou au type d'instance, reportez-vous à la section "Erreurs courantes" en fin de document.
 
-Récupérez les outputs Terraform : IP publique du master, IP privée du worker.
+### 3.2 Bootstrap automatique
+
+Après `terraform apply`, lancez le script de bootstrap depuis la racine du projet. Il met à jour automatiquement `~/.ssh/config`, `hosts.ini`, `defaults/main.yml` du worker, et copie la clé SSH sur le master :
 
 ~~~sh
-terraform output
+cd ..                                                             # Retour à la racine
+chmod +x bootstrap.sh                                             # Rendre le script executable
+SSH_KEY_PATH=~/.ssh/dittopedia_jenkins_key.pem ./bootstrap.sh     # Setup automatique
 ~~~
 
-### 3.2 Configuration SSH locale (jump host)
+> **Note** : Le script lit les outputs Terraform directement — assurez-vous d'avoir bien lancé `terraform apply` avant.
 
-Le worker étant sur un réseau privé, vous devez configurer un jump host via le master dans `~/.ssh/config` :
-
-~~~
-Host jenkins-master
-    HostName <IP_publique_master>
-    User ubuntu
-    IdentityFile ~/.ssh/dittopedia_jenkins_key.pem
-    IdentitiesOnly yes
-
-Host jenkins-worker
-    HostName <IP_privée_worker>
-    User ubuntu
-    IdentityFile ~/.ssh/dittopedia_jenkins_key.pem
-    IdentitiesOnly yes
-    ProxyJump jenkins-master
-~~~
-
-Ensuite, copiez la clé SSH sur le master pour qu'il puisse atteindre le worker :
+### 3.3 Lancement du playbook Jenkins Master
 
 ~~~sh
-# Depuis votre machine locale
-scp -i ~/.ssh/dittopedia_jenkins_key.pem \
-    ~/.ssh/dittopedia_jenkins_key.pem \
-    ubuntu@<IP_publique_master>:~/.ssh/
-
-# Depuis le master, vérifiez les permissions et testez
-ssh jenkins-master
-chmod 600 ~/.ssh/dittopedia_jenkins_key.pem
-ssh -i ~/.ssh/dittopedia_jenkins_key.pem ubuntu@<IP_privée_worker>
-~~~
-
-### 3.3 Mise à jour de l'inventaire Ansible
-
-Mettez à jour `ansible/inventory/hosts.ini` avec les IPs récupérées depuis Terraform :
-
-~~~ini
-[jenkins_master]
-<IP_publique_master> ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/dittopedia_jenkins_key.pem
-
-[jenkins_worker]
-jenkins-worker ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/dittopedia_jenkins_key.pem
-~~~
-
-> **Note** : L'alias `jenkins-worker` dans `hosts.ini` correspond directement à l'entrée `~/.ssh/config` — Ansible utilisera automatiquement le ProxyJump configuré.
-
-### 3.4 Lancement du playbook Jenkins Master
-
-~~~sh
-cd ../ansible
+cd ansible
 ansible-playbook -i inventory/hosts.ini site.yml --limit jenkins_master --ask-vault-pass
 ~~~
 
 Si besoin, voir le `.env` et regarder la valeur de `ANSIBLE_VAULT_PASS`.
 
-### 3.5 Configuration Jenkins UI (master)
+### 3.4 Configuration Jenkins UI (master)
 
 Accédez à l'interface Jenkins :
 - URL : `http://<IP_publique_master>:8080`
@@ -133,7 +92,7 @@ Une fois connecté, effectuez ces étapes **avant** de lancer le playbook worker
 - Sauvegardez
 - Cliquez sur le node créé et copiez le **secret** affiché dans la commande de connexion
 
-### 3.6 Configuration du secret worker
+### 3.5 Configuration du secret worker
 
 Mettez à jour le vault Ansible avec le secret récupéré à l'étape précédente :
 
@@ -145,20 +104,13 @@ ansible-vault edit inventory/group_vars/jenkins_worker/vault.yml
 agent_secret: "<secret_copié_depuis_jenkins_ui>"
 ~~~
 
-Mettez également à jour `ansible/roles/jenkins_worker/defaults/main.yml` si nécessaire :
-
-~~~yaml
-jenkins_master_ip: "<IP_privée_master>"
-agent_name: "worker1"
-~~~
-
-### 3.7 Lancement du playbook Jenkins Worker
+### 3.6 Lancement du playbook Jenkins Worker
 
 ~~~sh
 ansible-playbook -i inventory/hosts.ini site.yml --limit jenkins_worker --ask-vault-pass
 ~~~
 
-### 3.8 Vérification du worker
+### 3.7 Vérification du worker
 
 Vérifiez que l'agent est bien connecté :
 
@@ -178,8 +130,6 @@ Pour tout supprimer :
 cd terraform
 terraform destroy
 ~~~
-
-> **Note** : L'EIP du master est conservée au stop — `hosts.ini` et `~/.ssh/config` n'ont pas besoin d'être mis à jour au redémarrage. En revanche, le NAT Gateway continue de facturer même instances stoppées (~$0.045/heure).
 
 ## Erreurs courantes
 

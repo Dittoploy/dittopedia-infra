@@ -255,7 +255,7 @@ data "aws_ami" "ubuntu2204" {
 
 resource "aws_instance" "jenkins_master" {
   ami                         = data.aws_ami.ubuntu2204.id
-  instance_type               = "t3.micro"
+  instance_type               = "t3.small"
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.sg_jenkins_master.id]
   key_name                    = var.key_name
