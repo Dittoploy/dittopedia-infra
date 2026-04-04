@@ -3,9 +3,9 @@
     update_cache: yes
     cache_valid_time: 3600
 
-- name: Install Java 17
+- name: Install Java 21
   apt:
-    name: openjdk-17-jdk
+    name: openjdk-21-jdk
     state: present
 
 - name: Debug - check existing Jenkins keyring files
@@ -58,8 +58,12 @@
   when: key_stat.stat.size == 0
 
 - name: Verify downloaded key is valid PGP
-  ansible.builtin.shell:
-    cmd: grep -q "BEGIN PGP PUBLIC KEY BLOCK" /etc/apt/keyrings/jenkins-keyring.asc
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -q
+      - BEGIN PGP PUBLIC KEY BLOCK
+      - /etc/apt/keyrings/jenkins-keyring.asc
   changed_when: false
 
 - name: Add Jenkins repository

@@ -24,6 +24,16 @@ resource "aws_s3_bucket_public_access_block" "jenkins_backups_block" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "jenkins_backups_encryption" {
+  bucket = aws_s3_bucket.jenkins_backups.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
 # --- IAM Role et Policy pour Jenkins Master ---
 data "aws_iam_policy_document" "jenkins_s3" {
   statement {
@@ -159,6 +169,9 @@ resource "aws_security_group" "sg_jenkins_master" {
   description = "Allow Jenkins web and SSH access"
   vpc_id      = aws_vpc.main.id
 
+  # ⚠️ Jenkins Web UI ouvert à internet (0.0.0.0/0)
+  # En PRODUCTION : restreindre à une CIDR spécifique (office/VPN) ou mettre derrière load balancer + TLS
+  # En DEV/DÉMO : acceptable pour accès rapide depuis n'importe où
   ingress {
     description = "Jenkins Web UI"
     from_port   = 8080
@@ -167,6 +180,9 @@ resource "aws_security_group" "sg_jenkins_master" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # ⚠️ SSH ouvert à internet (0.0.0.0/0)
+  # En PRODUCTION : restreindre à une CIDR spécifique (office/VPN) ou utiliser AWS Systems Manager Session Manager
+  # En DEV/DÉMO : acceptable pour accès SSH rapide depuis n'importe où
   ingress {
     description = "SSH admin"
     from_port   = 22
@@ -213,16 +229,6 @@ resource "aws_security_group_rule" "worker_ssh_from_master" {
   security_group_id        = aws_security_group.sg_jenkins_worker.id
   source_security_group_id = aws_security_group.sg_jenkins_master.id
   description              = "SSH from Jenkins master"
-}
-
-resource "aws_security_group_rule" "worker_jnlp_from_master" {
-  type                     = "ingress"
-  from_port                = 50000
-  to_port                  = 50000
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.sg_jenkins_worker.id
-  source_security_group_id = aws_security_group.sg_jenkins_master.id
-  description              = "JNLP from Jenkins master"
 }
 
 resource "aws_security_group_rule" "master_jnlp_from_worker" {

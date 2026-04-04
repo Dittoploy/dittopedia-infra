@@ -4,9 +4,9 @@
     update_cache: yes
     cache_valid_time: 3600
 
-- name: Install Java 17
+- name: Install Java 21
   apt:
-    name: openjdk-17-jdk
+    name: openjdk-21-jdk
     state: present
 
 - name: Ensure jenkins user exists
@@ -26,12 +26,23 @@
     mode: '0755'
 
 - name: Download Jenkins agent jar
+  # ℹ️ HTTP acceptable en dev (VPC privé isolé)
+  # Note: L'endpoint /jnlpJars/agent.jar.sha256 n'existe pas dans Jenkins 2.541.3
+  # TODO: Utiliser HTTPS en production
   get_url:
     url: "http://{{ jenkins_master_ip }}:8080/jnlpJars/agent.jar"
     dest: /var/jenkins/agent.jar
     owner: jenkins
     group: jenkins
     mode: '0755'
+
+- name: Create agent secret file
+  copy:
+    content: "{{ agent_secret }}"
+    dest: /var/jenkins/agent-secret
+    owner: jenkins
+    group: jenkins
+    mode: '0600'
 
 - name: Create systemd service for Jenkins agent
   copy:
@@ -48,7 +59,7 @@
       [Service]
       User=jenkins
       WorkingDirectory=/var/jenkins
-      ExecStart=/usr/bin/java -jar /var/jenkins/agent.jar -jnlpUrl http://{{ jenkins_master_ip }}:8080/computer/{{ agent_name }}/jenkins-agent.jnlp -secret {{ agent_secret }}
+      ExecStart=/usr/bin/java -jar /var/jenkins/agent.jar -jnlpUrl http://{{ jenkins_master_ip }}:8080/computer/{{ agent_name }}/jenkins-agent.jnlp -secret @/var/jenkins/agent-secret
       Restart=always
 
       [Install]

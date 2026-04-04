@@ -1,4 +1,6 @@
 ---
-jenkins_master_ip: "10.0.1.240"
+# 🚀 jenkins_master_ip est mis à jour dynamiquement par bootstrap.sh (line ~74)
+# Ne pas commiter d'IP réelle ici, utiliser un placeholder
+jenkins_master_ip: "MASTER_PRIVATE_IP_PLACEHOLDER"
 agent_secret: "changeme"
 agent_name: "worker1"

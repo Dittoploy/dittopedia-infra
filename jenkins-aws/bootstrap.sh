@@ -15,7 +15,7 @@ cd terraform
 MASTER_PUBLIC_IP=$(terraform output -raw jenkins_master_public_ip)
 MASTER_PRIVATE_IP=$(terraform output -raw jenkins_master_private_ip)
 WORKER_PRIVATE_IP=$(terraform output -raw jenkins_worker_private_ip)
-SSH_KEY="${SSH_KEY_PATH:-~/.ssh/dittopedia_jenkins_key.pem}"
+SSH_KEY="${SSH_KEY_PATH:-$HOME/.ssh/dittopedia_jenkins_key.pem}"
 
 echo "  Master public  : $MASTER_PUBLIC_IP"
 echo "  Master private : $MASTER_PRIVATE_IP"
@@ -23,6 +23,11 @@ echo "  Worker private : $WORKER_PRIVATE_IP"
 
 # ── 2. Mise à jour de ~/.ssh/config ─────────────────────────────────────────
 echo -e "${YELLOW}[2/4] Mise à jour de ~/.ssh/config...${NC}"
+
+# Crée le répertoire ~/.ssh et le fichier de config s'ils n'existent pas
+mkdir -p ~/.ssh
+touch ~/.ssh/config
+chmod 600 ~/.ssh/config
 
 # Supprime les anciens blocs jenkins
 sed -i.bak '/^Host jenkins-master$/,/^$/d' ~/.ssh/config

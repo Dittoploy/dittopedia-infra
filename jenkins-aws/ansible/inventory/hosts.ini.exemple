@@ -1,0 +1,12 @@
+# Template Ansible Inventory
+# 🚀 Ce fichier est généré par bootstrap.sh
+# 📝 Ne pas commiter hosts.ini dans Git
+# 📋 Comme référence, voir bootstrap.sh lines 51-58
+
+[jenkins_master]
+# Remplacez AWS_MASTER_IP_HERE par l'IP publique du master Jenkins depuis Terraform output
+AWS_MASTER_IP_HERE ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/dittopedia_jenkins_key.pem
+
+[jenkins_worker]
+# Le DNS jenkins-master est configuré automatiquement par bootstrap.sh dans ~/.ssh/config
+jenkins-worker ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/dittopedia_jenkins_key.pem

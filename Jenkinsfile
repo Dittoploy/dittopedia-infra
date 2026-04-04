@@ -15,7 +15,7 @@ pipeline {
 
     stage('Pull Base Images') {
       steps {
-        sh 'docker compose pull postgres valkey adminer sonarqube || true'
+        sh 'docker compose pull postgres valkey adminer sonarqube'
       }
     }
 

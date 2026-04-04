@@ -40,15 +40,15 @@ Si vous obtenez une erreur liée au Free Tier ou au type d'instance, reportez-vo
 
 ### 3.2 Bootstrap automatique
 
-Après `terraform apply`, lancez le script de bootstrap depuis la racine du projet. Il met à jour automatiquement `~/.ssh/config`, `hosts.ini`, `defaults/main.yml` du worker, et copie la clé SSH sur le master :
+Après `terraform apply`, placez-vous dans le répertoire racine de `jenkins-aws/`, puis lancez le script de bootstrap. Le script suppose d'être exécuté depuis ce répertoire (il utilise notamment `cd terraform`). Il met à jour automatiquement `~/.ssh/config`, `hosts.ini`, `defaults/main.yml` du worker, et copie la clé SSH sur le master :
 
 ~~~sh
-cd ..                                                             # Retour à la racine
-chmod +x bootstrap.sh                                             # Rendre le script executable
-SSH_KEY_PATH=~/.ssh/dittopedia_jenkins_key.pem ./bootstrap.sh     # Setup automatique
+cd ..                                                             # Retourner à jenkins-aws/ (racine du module)
+chmod +x bootstrap.sh                                             # Rendre le script exécutable
+SSH_KEY_PATH=~/.ssh/dittopedia_jenkins_key.pem ./bootstrap.sh     # Exécuter depuis jenkins-aws/
 ~~~
 
-> **Note** : Le script lit les outputs Terraform directement — assurez-vous d'avoir bien lancé `terraform apply` avant.
+> **Note** : Le script lit les outputs Terraform directement — assurez-vous d'avoir bien lancé `terraform apply` avant (depuis `jenkins-aws/terraform/`).
 
 ### 3.3 Lancement du playbook Jenkins Master
 
