@@ -39,6 +39,7 @@
     owner: root
     group: root
     mode: '0644'
+    force: yes
     content: |
       [Unit]
       Description=Jenkins Agent

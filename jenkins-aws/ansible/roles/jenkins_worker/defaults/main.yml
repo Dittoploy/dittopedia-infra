@@ -1,4 +1,4 @@
 ---
-jenkins_master_ip: "1.2.3.4"
+jenkins_master_ip: "10.0.1.52"
 agent_secret: "changeme"
 agent_name: "worker1"
