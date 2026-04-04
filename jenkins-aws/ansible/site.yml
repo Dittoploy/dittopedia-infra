@@ -1,0 +1,10 @@
+
+- hosts: jenkins_master
+  become: true
+  roles:
+    - jenkins_master
+
+- hosts: jenkins_worker
+  become: true
+  roles:
+    - jenkins_worker

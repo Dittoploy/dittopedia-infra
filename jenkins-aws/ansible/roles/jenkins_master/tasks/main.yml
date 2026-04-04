@@ -1,0 +1,136 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install Java 21
+  apt:
+    name: openjdk-21-jdk
+    state: present
+
+- name: Debug - check existing Jenkins keyring files
+  ansible.builtin.find:
+    paths:
+      - /usr/share/keyrings
+      - /etc/apt/keyrings
+      - /etc/apt/sources.list.d
+    patterns: "jenkins*"
+  register: jenkins_files
+
+- name: Debug - print found files
+  ansible.builtin.debug:
+    var: jenkins_files.files
+
+- name: Remove stale Jenkins keyring files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/jenkins.io-2023.key
+    - /tmp/jenkins.io-2026.key
+    - /usr/share/keyrings/jenkins-keyring.gpg
+    - /etc/apt/keyrings/jenkins-keyring.asc
+
+- name: Ensure /etc/apt/keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Download Jenkins 2026 GPG key
+  ansible.builtin.get_url:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+    dest: /etc/apt/keyrings/jenkins-keyring.asc
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Verify key file is not empty
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/jenkins-keyring.asc
+  register: key_stat
+
+- name: Fail if key file is empty
+  ansible.builtin.fail:
+    msg: "Downloaded Jenkins key is empty — check network access to pkg.jenkins.io"
+  when: key_stat.stat.size == 0
+
+- name: Verify downloaded key is valid PGP
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -q
+      - BEGIN PGP PUBLIC KEY BLOCK
+      - /etc/apt/keyrings/jenkins-keyring.asc
+  changed_when: false
+
+- name: Add Jenkins repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    filename: jenkins
+    update_cache: true
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Ensure /var/jenkins_home exists
+  file:
+    path: /var/jenkins_home
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: '0755'
+
+- name: Debug - show available block devices
+  ansible.builtin.debug:
+    var: ansible_facts['devices']
+
+- name: Format /dev/xvdb if needed
+  filesystem:
+    fstype: ext4
+    dev: /dev/xvdb
+  when:
+    - ansible_facts['devices'] is defined
+    - "'xvdb' in ansible_facts['devices']"
+    - ansible_facts['devices']['xvdb']['partitions'] | length == 0
+
+- name: Mount /dev/xvdb on /var/jenkins_home
+  mount:
+    path: /var/jenkins_home
+    src: /dev/xvdb
+    fstype: ext4
+    opts: defaults
+    state: mounted
+  when:
+    - ansible_facts['devices'] is defined
+    - "'xvdb' in ansible_facts['devices']"
+
+- name: Set permissions for /var/jenkins_home after mount
+  file:
+    path: /var/jenkins_home
+    owner: jenkins
+    group: jenkins
+    mode: '0755'
+    recurse: yes
+
+- name: Ensure Jenkins is enabled and started
+  service:
+    name: jenkins
+    enabled: yes
+    state: started
+
+- name: Ensure UFW is installed
+  apt:
+    name: ufw
+    state: present
+
+- name: Allow 8080/tcp in UFW
+  ufw:
+    rule: allow
+    port: 8080
+    proto: tcp
