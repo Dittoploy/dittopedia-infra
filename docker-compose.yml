@@ -13,9 +13,6 @@ services:
       - PORT=3000
       - DATABASE_URL=postgresql://${POSTGRES_USER:-dittopedia}:${POSTGRES_PASSWORD:-dittopedia}@postgres:5432/${POSTGRES_DB:-dittopedia}
       - REDIS_URL=redis://valkey:6379
-    command: sh -c "bun run prisma:generate && exec bun run start"
-    volumes:
-      - back_node_modules:/app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -34,9 +31,6 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
-    command: sh -c "exec bun run start"
-    volumes:
-      - front_node_modules:/app/node_modules
     depends_on:
       - back
     restart: unless-stopped
@@ -51,9 +45,6 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-    command: sh -c "exec bun run start"
-    volumes:
-      - docs_node_modules:/app/node_modules
     restart: unless-stopped
 
   # ─── Data ──────────────────────────────────────────────────
@@ -125,9 +116,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  back_node_modules:
-  front_node_modules:
-  docs_node_modules:
   postgres_data:
   valkey_data:
   sonarqube_data:
