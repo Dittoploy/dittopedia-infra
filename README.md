@@ -13,12 +13,33 @@ Infrastructure et orchestration Docker du projet **Dittopedia**.
 # Copier et adapter les variables d'environnement
 cp .env.example .env
 
-# Lancer tous les services
+# Lancer tous les services (production)
 docker compose up -d
 
 # Vérifier que tout tourne
 docker compose ps
 ```
+
+## Mode développement (hot reload)
+
+Le projet utilise deux fichiers Docker Compose :
+
+- **`docker-compose.yml`** : Configuration **production** (target: prod, NODE_ENV=production, sans bind mounts)
+- **`docker-compose.dev.yml`** : Override pour **développement local** (target: dev, hot reload, polling)
+
+### Démarrer en développement
+
+```bash
+# Lancer avec les overrides de développement
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+# Ou utiliser un alias (ajout recommandé dans .bashrc / .zshrc):
+# alias docker-dev='docker compose -f docker-compose.yml -f docker-compose.dev.yml'
+# docker-dev up --build
+```
+
+Le code source local est monté dans les containers (`../dittopedia-back:/app`, etc.) et les dépendances
+sont conservées dans des volumes Docker (`back_node_modules`, `front_node_modules`, `docs_node_modules`).
 
 ## Services
 
