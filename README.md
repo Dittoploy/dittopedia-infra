@@ -30,6 +30,16 @@ Le projet utilise deux fichiers Docker Compose :
 ### Démarrer en développement
 
 ```bash
+# Arrêt non destructif recommandé après bascule prod <-> dev
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+# Optionnel: reset ciblé des seuls volumes node_modules dev
+# (adapte le préfixe de projet si différent de "dittopedia-infra")
+docker volume rm \
+    dittopedia-infra_back_node_modules_dev \
+    dittopedia-infra_front_node_modules_dev \
+    dittopedia-infra_docs_node_modules_dev
+
 # Lancer avec les overrides de développement
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
@@ -39,7 +49,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
 Le code source local est monté dans les containers (`../dittopedia-back:/app`, etc.) et les dépendances
-sont conservées dans des volumes Docker (`back_node_modules`, `front_node_modules`, `docs_node_modules`).
+sont conservées dans des volumes Docker dédiés au dev (`back_node_modules_dev`, `front_node_modules_dev`, `docs_node_modules_dev`).
 
 ## Services
 
