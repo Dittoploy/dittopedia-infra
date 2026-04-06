@@ -1,0 +1,49 @@
+# Override configuration for LOCAL DEVELOPMENT ONLY
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# This file overrides production settings with development-specific configurations:
+# - target: dev stage for faster rebuilds
+# - bind mounts for hot code reload
+# - polling for file system watchers in Docker
+# - dev server commands with install steps
+
+services:
+  back:
+    build:
+      target: dev
+    environment:
+      - NODE_ENV=development
+      # Force Chokidar to use polling so file changes are detected reliably in Docker bind mounts.
+      - CHOKIDAR_USEPOLLING=true
+    command: sh -c "bun install --no-save && bun run prisma:generate && exec bun run dev"
+    volumes:
+      - ../dittopedia-back:/app
+      - back_node_modules:/app/node_modules
+
+  front:
+    build:
+      target: dev
+    environment:
+      - NODE_ENV=development
+      # Force Chokidar to use polling so file changes are detected reliably in Docker bind mounts.
+      - CHOKIDAR_USEPOLLING=true
+      # Force Webpack/Watchpack to poll for changes (more reliable hot reload in Docker on macOS/Windows).
+      - WATCHPACK_POLLING=true
+    command: sh -c "bun install --no-save && exec bun run dev"
+    volumes:
+      - ../dittopedia-front:/app
+      - front_node_modules:/app/node_modules
+
+  docs:
+    build:
+      target: dev
+    environment:
+      - NODE_ENV=development
+      # Force Chokidar to use polling so file changes are detected reliably in Docker bind mounts.
+      - CHOKIDAR_USEPOLLING=true
+      # Force Webpack/Watchpack to poll for changes (more reliable hot reload in Docker on macOS/Windows).
+      - WATCHPACK_POLLING=true
+    command: sh -c "bun install --no-save && exec bun run dev"
+    volumes:
+      - ../dittopedia-docs:/app
+      - docs_node_modules:/app/node_modules
