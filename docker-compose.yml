@@ -10,7 +10,8 @@ services:
       - "${BACK_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=3000         # Frontend origin allowed by the backend (for example, CORS).
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3001}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-dittopedia}:${POSTGRES_PASSWORD:-dittopedia}@postgres:5432/${POSTGRES_DB:-dittopedia}
       - REDIS_URL=redis://valkey:6379
     depends_on:

@@ -30,6 +30,9 @@ Le projet utilise deux fichiers Docker Compose :
 ### Démarrer en développement
 
 ```bash
+# Lancer avec les overrides de développement
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
 # Arrêt non destructif recommandé après bascule prod <-> dev
 docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 
@@ -39,9 +42,6 @@ docker volume rm \
     dittopedia-infra_back_node_modules_dev \
     dittopedia-infra_front_node_modules_dev \
     dittopedia-infra_docs_node_modules_dev
-
-# Lancer avec les overrides de développement
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 # Ou utiliser un alias (ajout recommandé dans .bashrc / .zshrc):
 # alias docker-dev='docker compose -f docker-compose.yml -f docker-compose.dev.yml'
@@ -100,6 +100,7 @@ Les variables sont définies dans le fichier `.env` (copier `.env.example`).
 | `ADMINER_PORT` | `8080` | Port exposé pour Adminer |
 | `SONARQUBE_PORT` | `9000` | Port exposé pour SonarQube |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3000` | URL publique de l'API |
+| `FRONTEND_URL` | `http://localhost:3001` | Origine(s) frontend autorisée(s) par le backend (CORS), séparées par des virgules |
 | `POSTGRES_USER` | `dittopedia` | Utilisateur PostgreSQL |
 | `POSTGRES_PASSWORD` | `dittopedia` | Mot de passe PostgreSQL |
 | `POSTGRES_DB` | `dittopedia` | Nom de la base de données |

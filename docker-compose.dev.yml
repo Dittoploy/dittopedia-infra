@@ -13,6 +13,8 @@ services:
       target: dev
     environment:
       - NODE_ENV=development
+      # URL of the local frontend app used by the backend during development.
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3001}
       # Force Chokidar to use polling so file changes are detected reliably in Docker bind mounts.
       - CHOKIDAR_USEPOLLING=true
     command: sh -c "bun install --no-save && bun run prisma:generate && exec bun run dev"
@@ -25,6 +27,7 @@ services:
       target: dev
     environment:
       - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
       # Force Chokidar to use polling so file changes are detected reliably in Docker bind mounts.
       - CHOKIDAR_USEPOLLING=true
       # Force Webpack/Watchpack to poll for changes (more reliable hot reload in Docker on macOS/Windows).
