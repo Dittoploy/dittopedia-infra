@@ -122,6 +122,23 @@ sudo journalctl -u jenkins-agent -f
 
 Vous devriez voir `INFO: Connected` dans les logs. Le worker doit également apparaître comme **connecté** dans **Manage Jenkins → Nodes**.
 
+### 3.8 Ajout des credentials
+
+1) Docker Hub (Username with password)
+- id : dockerhub-creds 
+- username: Docker Hub username
+- password: Docker Hub token
+
+2) AWS Pair Key (Username with password)
+- id: aws-deploy-creds 
+- username: AWS_ACCESS_KEY_ID
+- password: AWS_SECRET_ACCESS_KEY
+
+3) EC2 Staging SSH (SSH Username with private key) (dittoploy-docs)
+- id : ec2-staging-ssh 
+- username: ubuntu
+- private key: cle EC2 (cat ~/.ssh/dittopedia_jenkins_key.pem)
+
 ## 4. Destruction de l'infrastructure
 
 Pour tout supprimer :

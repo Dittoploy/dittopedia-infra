@@ -9,6 +9,120 @@
     name: openjdk-21-jdk
     state: present
 
+- name: Install required CI tooling packages
+  apt:
+    name:
+      - curl
+      - ca-certificates
+      - gnupg
+      - git
+      - unzip
+      - ansible
+      - docker.io
+      - util-linux
+    state: present
+
+- name: Ensure apt keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download NodeSource repository signing key
+  get_url:
+    url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+    dest: /etc/apt/keyrings/nodesource-repo.gpg.key
+    mode: '0644'
+
+- name: Dearmor NodeSource repository signing key
+  command:
+    argv:
+      - gpg
+      - --dearmor
+      - --yes
+      - --output
+      - /etc/apt/keyrings/nodesource.gpg
+      - /etc/apt/keyrings/nodesource-repo.gpg.key
+  args:
+    creates: /etc/apt/keyrings/nodesource.gpg
+
+- name: Add NodeSource repository for Node.js 20
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main"
+    filename: nodesource
+    state: present
+    update_cache: yes
+
+- name: Repair dpkg state before Node.js upgrade
+  shell: |
+    set -eu
+    dpkg --configure -a
+    apt-get -f install -y
+  changed_when: false
+
+- name: Remove distro Node development packages conflicting with NodeSource
+  apt:
+    name:
+      - libnode-dev
+      - nodejs-doc
+    state: absent
+    purge: yes
+    autoremove: yes
+    update_cache: yes
+
+- name: Install Node.js 20 LTS
+  apt:
+    name: nodejs
+    state: present
+    update_cache: yes
+
+- name: Verify Node.js major version is compatible with Next.js 15
+  shell: |
+    set -eu
+    echo "Detected node: $(node -v)"
+    MAJOR=$(node -p "process.versions.node.split('.')[0]")
+    if [ "$MAJOR" -lt 18 ]; then
+      echo "Node.js >= 18 required, found $(node -v)" >&2
+      exit 1
+    fi
+  changed_when: false
+
+- name: Check if swapfile exists
+  stat:
+    path: /swapfile
+  register: swapfile_stat
+
+- name: Create 4G swapfile
+  command: fallocate -l 4G /swapfile
+  when: not swapfile_stat.stat.exists
+
+- name: Set swapfile permissions
+  file:
+    path: /swapfile
+    mode: '0600'
+  when: not swapfile_stat.stat.exists
+
+- name: Format swapfile
+  command: mkswap /swapfile
+  when: not swapfile_stat.stat.exists
+
+- name: Enable swapfile
+  command: swapon /swapfile
+  when: not swapfile_stat.stat.exists
+
+- name: Persist swapfile in fstab
+  lineinfile:
+    path: /etc/fstab
+    line: '/swapfile none swap sw 0 0'
+    state: present
+
+- name: Set swappiness
+  sysctl:
+    name: vm.swappiness
+    value: '10'
+    state: present
+    reload: yes
+
 - name: Ensure jenkins user exists
   user:
     name: jenkins
@@ -16,6 +130,111 @@
     shell: /usr/sbin/nologin
     system: yes
     create_home: yes
+
+- name: Add jenkins user to docker group
+  user:
+    name: jenkins
+    groups: docker
+    append: yes
+
+- name: Download Terraform binary
+  get_url:
+    url: https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip
+    dest: /tmp/terraform_1.9.8_linux_amd64.zip
+    mode: '0644'
+
+- name: Download Terraform SHA256 checksums
+  get_url:
+    url: https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_SHA256SUMS
+    dest: /tmp/terraform_1.9.8_SHA256SUMS
+    mode: '0644'
+
+- name: Verify Terraform binary checksum
+  shell: |
+    set -eu
+    cd /tmp
+    grep "terraform_1.9.8_linux_amd64.zip" terraform_1.9.8_SHA256SUMS | sha256sum -c -
+  changed_when: false
+
+- name: Extract Terraform binary to /usr/local/bin
+  unarchive:
+    src: /tmp/terraform_1.9.8_linux_amd64.zip
+    dest: /usr/local/bin
+    remote_src: yes
+    mode: '0755'
+    owner: root
+    group: root
+    creates: /usr/local/bin/terraform
+
+- name: Clean up Terraform temporary files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/terraform_1.9.8_linux_amd64.zip
+    - /tmp/terraform_1.9.8_SHA256SUMS
+
+- name: Ensure bun installation directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /opt/bun
+    - /opt/bun/bin
+
+- name: Download pinned bun release archive
+  get_url:
+    url: https://github.com/oven-sh/bun/releases/download/bun-v1.1.38/bun-linux-x64.zip
+    dest: /tmp/bun-linux-x64.zip
+    mode: '0644'
+
+- name: Download bun release SHA256 checksums
+  get_url:
+    url: https://github.com/oven-sh/bun/releases/download/bun-v1.1.38/SHASUMS256.txt
+    dest: /tmp/bun-SHASUMS256.txt
+    mode: '0644'
+
+- name: Verify bun release archive checksum
+  shell: |
+    set -eu
+    cd /tmp
+    grep "bun-linux-x64.zip" bun-SHASUMS256.txt | sha256sum -c -
+  changed_when: false
+
+- name: Extract bun release archive
+  unarchive:
+    src: /tmp/bun-linux-x64.zip
+    dest: /opt/bun
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+    creates: /opt/bun/bun-linux-x64/bun
+
+- name: Link bun binary into /opt/bun/bin
+  file:
+    src: /opt/bun/bun-linux-x64/bun
+    dest: /opt/bun/bin/bun
+    state: link
+    force: yes
+
+- name: Clean up bun temporary files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/bun-linux-x64.zip
+    - /tmp/bun-SHASUMS256.txt
+
+- name: Make bun available in PATH
+  file:
+    src: /opt/bun/bin/bun
+    dest: /usr/local/bin/bun
+    state: link
+    force: yes
 
 - name: Create agent directory
   file:
@@ -59,8 +278,11 @@
       [Service]
       User=jenkins
       WorkingDirectory=/var/jenkins
+      Environment="JAVA_TOOL_OPTIONS=-Xms128m -Xmx512m"
+      Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       ExecStart=/usr/bin/java -jar /var/jenkins/agent.jar -jnlpUrl http://{{ jenkins_master_ip }}:8080/computer/{{ agent_name }}/jenkins-agent.jnlp -secret @/var/jenkins/agent-secret
       Restart=always
+      RestartSec=2
 
       [Install]
       WantedBy=multi-user.target
