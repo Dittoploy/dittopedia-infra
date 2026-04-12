@@ -50,7 +50,23 @@ SSH_KEY_PATH=~/.ssh/dittopedia_jenkins_key.pem ./bootstrap.sh     # Exécuter de
 
 > **Note** : Le script lit les outputs Terraform directement — assurez-vous d'avoir bien lancé `terraform apply` avant (depuis `jenkins-aws/terraform/`).
 
-### 3.3 Lancement du playbook Jenkins Master
+### 3.3 Bootstrap worker (clé de déploiement)
+
+Pour automatiser la préparation SSH du worker (même logique orientée bootstrap), lancez le script dédié :
+
+~~~sh
+cd ..
+chmod +x bootstrap-worker.sh
+SSH_KEY_PATH=~/.ssh/dittopedia_jenkins_key.pem \
+DEPLOY_KEY_PATH=~/.ssh/dittopedia_jenkins_key.pem \
+./bootstrap-worker.sh
+~~~
+
+Variables optionnelles :
+- `DEPLOY_KEY_PATH` : clé privée à déposer sur le worker (par défaut = `SSH_KEY_PATH`)
+- `WORKER_KEY_DEST_PATH` : chemin cible sur le worker (par défaut `/var/jenkins/.ssh/dittopedia_deploy_key.pem`)
+
+### 3.4 Lancement du playbook Jenkins Master
 
 ~~~sh
 cd ansible
@@ -59,7 +75,7 @@ ansible-playbook -i inventory/hosts.ini site.yml --limit jenkins_master --ask-va
 
 Si besoin, voir le `.env` et regarder la valeur de `ANSIBLE_VAULT_PASS`.
 
-### 3.4 Configuration Jenkins UI (master)
+### 3.5 Configuration Jenkins UI (master)
 
 Accédez à l'interface Jenkins :
 - URL : `http://<IP_publique_master>:8080`
@@ -92,7 +108,7 @@ Une fois connecté, effectuez ces étapes **avant** de lancer le playbook worker
 - Sauvegardez
 - Cliquez sur le node créé et copiez le **secret** affiché dans la commande de connexion
 
-### 3.5 Configuration du secret worker
+### 3.6 Configuration du secret worker
 
 Mettez à jour le vault Ansible avec le secret récupéré à l'étape précédente :
 
@@ -104,13 +120,13 @@ ansible-vault edit inventory/group_vars/jenkins_worker/vault.yml
 agent_secret: "<secret_copié_depuis_jenkins_ui>"
 ~~~
 
-### 3.6 Lancement du playbook Jenkins Worker
+### 3.7 Lancement du playbook Jenkins Worker
 
 ~~~sh
 ansible-playbook -i inventory/hosts.ini site.yml --limit jenkins_worker --ask-vault-pass
 ~~~
 
-### 3.7 Vérification du worker
+### 3.8 Vérification du worker
 
 Vérifiez que l'agent est bien connecté :
 
