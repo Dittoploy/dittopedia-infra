@@ -122,7 +122,30 @@ sudo journalctl -u jenkins-agent -f
 
 Vous devriez voir `INFO: Connected` dans les logs. Le worker doit également apparaître comme **connecté** dans **Manage Jenkins → Nodes**.
 
-## 4. Destruction de l'infrastructure
+## 4. Credentials Jenkins à créer
+
+Créez les credentials Jenkins suivants (scope global) pour les pipelines Dittopedia :
+
+- **`dockerhub-creds`**
+  - Type : Username with password
+  - Username : login Docker Hub
+  - Password : Docker Hub token
+- **`aws-deploy-creds`**
+  - Type : Username with password
+  - Username : AWS Access Key ID
+  - Password : AWS Secret Access Key
+- **`ec2-staging-ssh`**
+  - Type : SSH Username with private key
+  - Username : `ubuntu`
+  - Private key : clé privée SSH de déploiement (cat ~/.ssh/dittopedia_jenkins_key.pem)
+- **`ssh-ingress-cidr-default`**
+  - Type : Secret text
+  - Valeur : CIDR SSH autorisé unique (Depuis le worker `ssh jenkins-worker`, executez `curl -s https://checkip.amazonaws.com`)
+  - Interdit : `0.0.0.0/0`
+
+Note : la pipeline docs peut prendre un `SSH_INGRESS_CIDR` manuel au lancement du job, qui reste prioritaire. Si ce paramètre est vide, la valeur du credential `ssh-ingress-cidr-default` est utilisée.
+
+## 5. Destruction de l'infrastructure
 
 Pour tout supprimer :
 

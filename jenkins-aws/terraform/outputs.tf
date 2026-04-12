@@ -15,3 +15,8 @@ output "jenkins_worker_private_ip" {
 	description = "Adresse IP privée de l'instance Jenkins Worker"
 	value       = aws_instance.jenkins_worker.private_ip
 }
+
+output "jenkins_worker_public_ip" {
+	description = "Adresse IP publique de l'instance Jenkins Worker (peut être vide si l'instance est en subnet privé)"
+	value       = aws_instance.jenkins_worker.public_ip
+}
