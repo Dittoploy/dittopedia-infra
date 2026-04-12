@@ -1,0 +1,6 @@
+aws_region       = "eu-west-3"
+instance_name    = "dittopedia-docs-staging"
+instance_type    = "t3.small"
+key_name         = "dittopedia-jenkins-key"
+ssh_ingress_cidr = "0.0.0.0/0"
+docs_port        = 80
