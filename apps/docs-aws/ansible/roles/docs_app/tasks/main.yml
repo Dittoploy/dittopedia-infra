@@ -14,9 +14,14 @@
     name:
       - python3
       - python3-pip
-      - python3-docker
       - python3-requests
     state: present
+
+- name: Install Docker SDK for Python (required by community.docker modules)
+  pip:
+    name:
+      - docker
+    executable: pip3
 
 - name: Ensure Docker is enabled and running
   systemd:
