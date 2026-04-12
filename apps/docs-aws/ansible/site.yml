@@ -1,0 +1,6 @@
+---
+- name: Deploy docs app
+  hosts: docs
+  become: true
+  roles:
+    - docs_app
