@@ -23,6 +23,56 @@ Le but est de fournir un guide pas-a-pas, directement executable, pour le job Je
 - Script path: Jenkinsfile
 - Agent label: worker1
 
+### 2.2 Activer le declenchement automatique (webhook GitHub)
+
+1) URL webhook GitHub:
+
+~~~text
+http://jenkins-master-ip:8080/github-webhook/
+~~~
+
+2) Configuration du webhook dans GitHub (repo `dittopedia-docs`):
+- Settings -> Webhooks -> Add webhook
+- Payload URL: `http://jenkins-master-ip:8080/github-webhook/`
+- Content type: `application/json`
+- Secret: valeur à récupérer dans le .env
+- SSL verification: `Disable` (car notre Jenkins AWS est en HTTP)
+- Events: `Just the push event`
+
+1) Configuration du job Jenkins:
+- Pipeline from SCM (deja en place)
+- Branch specifier: `*/staging-aws-1`
+- Script path: `Jenkinsfile`
+- Cocher `GitHub hook trigger for GITScm polling`
+- Sauvegarder la configuration du job apres verification.
+
+## 2.3 Detection du commit et verification du trigger
+
+Objectif: verifier rapidement si le webhook cible bien le bon commit et la bonne branche.
+
+1) Cote GitHub (Webhook deliveries):
+- Ouvrir la derniere delivery du webhook.
+- Verifier `Response status = 200`.
+- Verifier dans le payload:
+  - `ref = refs/heads/staging-aws-1`
+  - `after = <sha_du_commit_declencheur>`
+
+2) Cote Jenkins (build):
+- Dans la phase checkout, verifier:
+  - `Checking out Revision <sha>`
+  - ce SHA doit correspondre a `after` du payload GitHub.
+
+Si le job ne se lance pas:
+- Verifier que le webhook est `Active` dans GitHub.
+- Verifier que le job Jenkins pointe bien sur `*/staging-aws-1`.
+- Verifier que l'event selectionne est bien `push`.
+- Verifier que l'URL webhook termine par `/github-webhook/`.
+
+Si la delivery est en echec:
+- `404`: URL webhook incorrecte.
+- `403`: secret/signature invalide ou Jenkins refuse la requete.
+- `5xx`: Jenkins indisponible ou surcharge momentanee.
+
 ## 3. Configuration appliquee par le Jenkinsfile
 
 Variables principales:
