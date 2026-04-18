@@ -1,0 +1,31 @@
+---
+# Default variables for backend deployment
+# Overridden by Jenkins extra-vars during deployment
+
+docker_compose_version: "2.20.0"
+valkey_image: "valkey/valkey:latest"
+backend_image: "{{ backend_image | default('dittoploy/dittopedia-back:staging-aws-1') }}"
+
+# Container restart policies
+container_restart_policy: "unless-stopped"
+
+# Health check configuration
+health_check_timeout: 30
+health_check_retries: 6
+
+# Database and cache endpoints (injected by Terraform/Jenkins)
+database_url: "{{ database_url | default('postgresql://postgres:password@localhost:5432/dittopedia') }}"
+valkey_url: "redis://localhost:6379"
+
+# Backend container environment
+backend_environment:
+  NODE_ENV: "production"
+  DATABASE_URL: "{{ database_url }}"
+  REDIS_URL: "{{ valkey_url }}"
+  VALKEY_URL: "{{ valkey_url }}"
+  FRONTEND_URL: "{{ frontend_url | default('http://localhost:3001') }}"
+  LOG_LEVEL: "info"
+
+# Docker Hub credentials (from Jenkins)
+dockerhub_user: "{{ dockerhub_user | default('') }}"
+dockerhub_password: "{{ dockerhub_password | default('') }}"

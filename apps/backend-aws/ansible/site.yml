@@ -1,0 +1,33 @@
+---
+# Dittopedia Backend AWS Deployment Playbook
+# Deploys backend API + Valkey cache on EC2 instance
+
+- name: Configure Backend Application
+  hosts: backend
+  become: yes
+  vars_files:
+    - vars/main.yml
+  roles:
+    - backend_app
+
+  post_tasks:
+    - name: Wait for backend health check
+      uri:
+        url: "http://localhost:3000/health/live"
+        method: GET
+        status_code: 200
+      register: backend_health
+      retries: 10
+      delay: 5
+      until: backend_health.status == 200
+      timeout: 60
+      ignore_errors: yes
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ✓ Backend deployment completed!
+          - Backend API: http://{{ ansible_host }}:3000
+          - Health check: {{ backend_health.status | default('pending', true) }}
+          - Valkey cache: redis://localhost:6379
+          - Database URL: {{ database_url | default('not provided', true) }}

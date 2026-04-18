@@ -1,0 +1,43 @@
+# Backend AWS Deployment Configuration
+# Copy this file to terraform.tfvars and fill in the required values
+
+aws_region        = "eu-west-3"
+instance_name     = "dittopedia-backend-staging"
+instance_type     = "t3.small"
+environment       = "staging"
+
+# IMPORTANT: SSH CIDR must be restricted to your Jenkins worker IP
+# Find Jenkins worker IP: ssh into Jenkins master, then `curl https://checkip.amazonaws.com`
+# Format: "203.0.113.0/32" for single IP, "203.0.113.0/24" for subnet
+# DO NOT USE 0.0.0.0/0
+ssh_ingress_cidr = "203.0.113.0/32"
+
+backend_port    = 3000
+valkey_port     = 6379
+
+# Enable RDS (free tier db.t3.micro)
+# If eu-west-3 doesn't support free tier RDS, set to false
+# and backend will use PostgreSQL on the same EC2 instance
+enable_rds = true
+
+rds_instance_class     = "db.t3.micro"
+rds_allocated_storage  = 20
+rds_engine_version     = "16"
+rds_database_name      = "dittopedia"
+rds_master_username    = "postgres"
+
+# SENSITIVE: RDS master password
+# Recommendation: Generate strong password and store in Jenkins secret
+# Or pass via terraform var: terraform apply -var 'rds_master_password=xxxxx'
+# rds_master_password = "ChangeMe123!@#"
+
+# SSH public key from Jenkins worker
+# Retrieve via: ssh jenkins-worker "cat ~/.ssh/id_rsa.pub"
+# public_key = "ssh-rsa AAAAB3NzaC1y... jenkins@worker"
+
+tags = {
+  Project     = "dittopedia"
+  Environment = "staging"
+  ManagedBy   = "Terraform"
+  CreatedBy   = "Jenkins"
+}

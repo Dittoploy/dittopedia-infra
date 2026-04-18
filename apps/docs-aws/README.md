@@ -23,6 +23,29 @@ Le but est de fournir un guide pas-a-pas, directement executable, pour le job Je
 - Script path: Jenkinsfile
 - Agent label: worker1
 
+### 2.2 Activer le déclenchement automatique (webhook GitHub)
+
+1) URL webhook GitHub:
+
+~~~text
+http://jenkins-master-ip:8080/github-webhook/
+~~~
+
+2) Configuration du webhook dans GitHub (repo `dittopedia-docs`):
+- Settings -> Webhooks -> Add webhook
+- Payload URL: `http://jenkins-master-ip:8080/github-webhook/`
+- Content type: `application/json`
+- Secret: valeur à récupérer dans le .env
+- SSL verification: `Disable` (car notre Jenkins AWS est en HTTP)
+- Events: `Just the push event`
+
+3) Configuration du job Jenkins:
+- Pipeline from SCM (déjà en place)
+- Branch specifier: `*/staging-aws-1`
+- Script path: `Jenkinsfile`
+- Cocher `GitHub hook trigger for GITScm polling`
+- Sauvegarder la configuration du job après vérification.
+
 ## 3. Configuration appliquee par le Jenkinsfile
 
 Variables principales:
@@ -91,62 +114,20 @@ Notes:
 
 ### 6.2 Destruction avec Terraform (si state disponible)
 
-Si vous disposez du state Terraform de ce composant:
-
 ~~~sh
-cd apps/docs-aws/terraform
-terraform init
-terraform destroy -auto-approve \
+ssh jenkins-worker
+
+cd /var/jenkins/workspace/Deploy-Dittopedia-Docs-Staging/infra-workdir/apps/docs-aws/terraform
+terraform init -input=false
+terraform destroy -auto-approve -input=false \
   -var="aws_region=eu-west-3" \
   -var="instance_name=dittopedia-docs-staging" \
   -var="instance_type=t3.small" \
-  -var="key_name=dittopedia-jenkins-key-fallback"
+  -var="key_name=dittopedia-jenkins-key-fallback" \
+  -var="public_key=$(cat /home/jenkins/.ssh/ec2-staging-ssh.pub)" \
+  -var="ssh_ingress_cidr=<JENKINS_WORKER_CIDR>"
 ~~~
 
-### 6.3 Destruction manuelle AWS CLI (si state indisponible)
-
-Cas frequent: le deployment Jenkins utilise un dossier temporaire sans backend distant,
-donc le state nest pas conserve localement.
-
-1) Trouver les instances docs:
-
-~~~sh
-aws ec2 describe-instances \
-  --region eu-west-3 \
-  --filters Name=tag:Name,Values=dittopedia-docs-staging Name=instance-state-name,Values=pending,running,stopping,stopped \
-  --query "Reservations[].Instances[].InstanceId" \
-  --output text
-~~~
-
-2) Terminer les instances trouvees:
-
-~~~sh
-aws ec2 terminate-instances --region eu-west-3 --instance-ids <INSTANCE_ID_1> <INSTANCE_ID_2>
-~~~
-
-3) Lister puis supprimer le SG docs:
-
-~~~sh
-aws ec2 describe-security-groups \
-  --region eu-west-3 \
-  --filters Name=group-name,Values=dittopedia-docs-staging-sg \
-  --query "SecurityGroups[].GroupId" \
-  --output text
-~~~
-
-~~~sh
-aws ec2 delete-security-group --region eu-west-3 --group-id <SG_ID>
-~~~
-
-4) Lister puis supprimer les key pairs fallback:
-
-~~~sh
-aws ec2 describe-key-pairs \
-  --region eu-west-3 \
-  --query "KeyPairs[?starts_with(KeyName, 'dittopedia-jenkins-key-fallback-')].KeyName" \
-  --output text
-~~~
-
-~~~sh
-aws ec2 delete-key-pair --region eu-west-3 --key-name <KEY_NAME>
-~~~
+Note:
+- `key_name`, `public_key` et `ssh_ingress_cidr` sont requis par les variables Terraform, y compris pour un destroy.
+- Sans state compatible, Terraform ne pourra pas tout detruire automatiquement.

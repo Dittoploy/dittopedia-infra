@@ -1,0 +1,298 @@
+---
+# Backend Application Role
+# Installs Docker, Valkey, and Backend NestJS application
+
+- name: Update system packages
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  register: apt_update
+  retries: 3
+  delay: 10
+  until: apt_update is succeeded
+
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - ca-certificates
+      - apt-transport-https
+      - gnupg
+      - lsb-release
+      - python3-pip
+    state: present
+  retries: 3
+  delay: 10
+
+- name: Install Docker repository key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  retries: 3
+  delay: 10
+
+- name: Add Docker repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+
+- name: Install Docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+    state: present
+    update_cache: yes
+  retries: 3
+  delay: 10
+
+- name: Install Docker Python SDK (for Ansible modules)
+  pip:
+    name:
+      - docker
+      - docker-compose
+    state: present
+    extra_args: "--upgrade"
+  retries: 3
+  delay: 10
+
+- name: Enable Docker service
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+- name: Add Ubuntu user to docker group
+  user:
+    name: ubuntu
+    groups: docker
+    append: yes
+
+- name: Verify Docker installation
+  command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Display Docker version
+  debug:
+    msg: "Docker installed: {{ docker_version.stdout }}"
+
+# ====================================
+# Docker Hub Authentication
+# ====================================
+
+- name: Create docker config directory
+  file:
+    path: /root/.docker
+    state: directory
+    mode: "0700"
+
+- name: Docker login (if credentials provided)
+  community.docker.docker_login:
+    username: "{{ dockerhub_user }}"
+    password: "{{ dockerhub_password }}"
+    state: present
+  when: dockerhub_user and dockerhub_password
+  register: docker_login
+  ignore_errors: yes
+
+- name: Display Docker login status
+  debug:
+    msg: "Docker Hub authentication: {{ docker_login.status | default('skipped') }}"
+
+# ====================================
+# Valkey Cache Container
+# ====================================
+
+- name: Pull Valkey Docker image
+  community.docker.docker_image:
+    name: "{{ valkey_image }}"
+    source: pull
+    state: present
+  retries: 3
+  delay: 10
+  register: valkey_pull
+
+- name: Create Valkey container
+  community.docker.docker_container:
+    name: valkey
+    image: "{{ valkey_image }}"
+    state: present
+    restart_policy: "{{ container_restart_policy }}"
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli ping || redis-cli ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+  register: valkey_container
+  retries: 3
+  delay: 5
+
+- name: Ensure Valkey container is running
+  community.docker.docker_container:
+    name: valkey
+    state: started
+
+- name: Wait for Valkey to be ready
+  shell: docker exec valkey sh -c 'valkey-cli ping || redis-cli ping'
+  retries: 10
+  delay: 2
+  register: valkey_ready
+  until: "'PONG' in valkey_ready.stdout"
+
+- name: Display Valkey status
+  debug:
+    msg: "Valkey cache is running on port 6379"
+
+# ====================================
+# Prisma Schema Sync
+# ====================================
+
+- name: Create prisma directory on host
+  file:
+    path: /home/ubuntu/prisma
+    state: directory
+    mode: "0755"
+
+- name: Copy Prisma schema to host
+  copy:
+    src: "{{ playbook_dir }}/../../../../prisma/schema.prisma"
+    dest: /home/ubuntu/prisma/schema.prisma
+    mode: "0644"
+
+- name: Run Prisma db push
+  community.docker.docker_container:
+    name: prisma-push
+    image: "{{ backend_image }}"
+    state: started
+    restart_policy: "no"
+    detach: false
+    cleanup: true
+    env:
+      DATABASE_URL: "{{ database_url }}"
+    volumes:
+      - "/home/ubuntu/prisma:/app/prisma:ro"
+    command: ["npx", "prisma", "db", "push", "--schema=/app/prisma/schema.prisma", "--url={{ database_url }}", "--accept-data-loss"]
+  register: prisma_push
+  retries: 3
+  delay: 10
+  until: prisma_push is succeeded
+
+# ====================================
+# Backend API Container
+# ====================================
+
+- name: Pull backend Docker image
+  community.docker.docker_image:
+    name: "{{ backend_image }}"
+    source: pull
+    state: present
+  retries: 3
+  delay: 10
+  register: backend_pull
+
+- name: Normalize backend environment variables
+  set_fact:
+    backend_environment_map: "{{ backend_environment if (backend_environment is mapping) else (backend_environment | from_yaml) }}"
+
+- name: Create backend container
+  community.docker.docker_container:
+    container_default_behavior: compatibility
+    name: dittopedia-backend
+    image: "{{ backend_image }}"
+    state: started
+    restart_policy: "{{ container_restart_policy }}"
+    published_ports:
+      - "3000:3000"
+    env: "{{ backend_environment_map | to_json | from_json }}"
+  register: backend_container
+  retries: 3
+  delay: 5
+
+- name: Ensure backend container is running
+  community.docker.docker_container:
+    name: dittopedia-backend
+    state: started
+
+# ====================================
+# Post-Deployment Validation
+# ====================================
+
+- name: Wait for backend to be ready
+  uri:
+    url: "http://localhost:3000/health/live"
+    method: GET
+    status_code: 200
+  register: backend_ready
+  retries: 15
+  delay: 3
+  until: backend_ready.status == 200
+
+- name: Check backend liveness endpoint
+  uri:
+    url: "http://localhost:3000/health/live"
+    method: GET
+    status_code: 200
+  register: health_live
+  retries: 5
+  delay: 2
+
+- name: Check backend readiness endpoint
+  uri:
+    url: "http://localhost:3000/health/ready"
+    method: GET
+    status_code: 200
+  register: health_ready
+  retries: 5
+  delay: 2
+  ignore_errors: yes
+
+- name: Display health check results
+  debug:
+    msg: |
+      Backend health checks:
+      ✓ Liveness: {{ health_live.status }}
+      ✓ Readiness: {{ health_ready.status | default('skipped', true) }}
+
+- name: Check backend logs for errors
+  shell: docker logs dittopedia-backend 2>&1 | tail -20
+  register: backend_logs
+  changed_when: false
+
+- name: Display last backend logs
+  debug:
+    msg: "{{ backend_logs.stdout_lines }}"
+
+# ====================================
+# Docker Hub Cleanup
+# ====================================
+
+- name: Docker logout
+  community.docker.docker_login:
+    state: absent
+  when: dockerhub_user and dockerhub_password
+  ignore_errors: yes
+
+- name: Prune unused Docker objects
+  community.docker.docker_prune:
+    images: no
+    containers: yes
+  ignore_errors: yes
+
+- name: Display deployment completion
+  debug:
+    msg: |
+      ✓ Backend deployment complete!
+      Backend API: http://{{ ansible_host }}:3000
+      Valkey: redis://localhost:6379
+      Logs: docker logs dittopedia-backend
+      Restart: docker restart dittopedia-backend

@@ -1,0 +1,8 @@
+[backend]
+# Dynamically populated by Jenkins with backend EC2 public IP
+# Format: <PUBLIC_IP> ansible_user=ubuntu ansible_ssh_private_key_file=...
+
+[backend:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=/var/jenkins/.ssh/dittopedia_deploy_key.pem
+ansible_ssh_common_args="-o StrictHostKeyChecking=no"

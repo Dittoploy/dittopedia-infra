@@ -118,6 +118,3 @@ ssh_via_master \
 echo
 echo -e "${GREEN}=== Bootstrap worker terminé ===${NC}"
 echo "Clé installée: $WORKER_KEY_DEST"
-echo
-echo "Prochaine étape recommandée :"
-echo "  - Relancer le job Jenkins de déploiement docs"
