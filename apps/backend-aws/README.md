@@ -167,4 +167,4 @@ cat ~/.ssh/dittopedia_jenkins_key.pem
 
 `rds_master_password` à retrouver dans le .env
 
-`ssh_ingress_cidr` à trouver dans cat ~/.ssh/dittopedia_jenkins_key.pem
+`ssh_ingress_cidr` à trouver via `curl -s https://checkip.amazonaws.com` depuis le worker (en rajoutant /32 à la fin)

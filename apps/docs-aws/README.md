@@ -113,21 +113,32 @@ Notes:
 - Le deployment applicatif (Docker pull/run) est fait via Ansible sur linstance EC2.
 
 ### 6.2 Destruction avec Terraform (si state disponible)
+<!-- TODO : Automatiser cette partie avec un .sh -->
+
+Important:
+- Cette commande ne supprime proprement que les ressources presentes dans le state utilise.
+- Si le `apply` a ete lance depuis Jenkins avec un state local du workspace, il faut executer le `destroy` depuis ce meme workspace Jenkins (ou recuperer exactement ce `terraform.tfstate`).
 
 ~~~sh
 ssh jenkins-worker
 
 cd /var/jenkins/workspace/Deploy-Dittopedia-Docs-Staging/infra-workdir/apps/docs-aws/terraform
-terraform init -input=false
-terraform destroy -auto-approve -input=false \
-  -var="aws_region=eu-west-3" \
-  -var="instance_name=dittopedia-docs-staging" \
-  -var="instance_type=t3.small" \
-  -var="key_name=dittopedia-jenkins-key-fallback" \
-  -var="public_key=$(cat /home/jenkins/.ssh/ec2-staging-ssh.pub)" \
-  -var="ssh_ingress_cidr=<JENKINS_WORKER_CIDR>"
+terraform init
+
+export AWS_ACCESS_KEY_ID="ton-access-key-id"
+export AWS_SECRET_ACCESS_KEY="ta-secret-access-key"
+export AWS_DEFAULT_REGION="eu-west-3"
+
+sudo -E terraform destroy
 ~~~
 
 Note:
-- `key_name`, `public_key` et `ssh_ingress_cidr` sont requis par les variables Terraform, y compris pour un destroy.
-- Sans state compatible, Terraform ne pourra pas tout detruire automatiquement.
+`public_key` pour la trouver, sur votre machine locale:
+~~~sh
+cat ~/.ssh/dittopedia_jenkins_key.pem
+~~~
+(Copier tout sur une seule ligne)
+
+`rds_master_password` à retrouver dans le .env
+
+`ssh_ingress_cidr` à trouver via `curl -s https://checkip.amazonaws.com` depuis le worker (en rajoutant /32 à la fin)

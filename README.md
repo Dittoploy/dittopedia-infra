@@ -31,7 +31,7 @@ Le projet utilise deux fichiers Docker Compose :
 
 ```bash
 # Arrêt non destructif recommandé après bascule prod <-> dev
-docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 # Optionnel: reset ciblé des seuls volumes node_modules dev
 # (adapte le préfixe de projet si différent de "dittopedia-infra")

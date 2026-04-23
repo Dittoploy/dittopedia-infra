@@ -1,0 +1,48 @@
+---
+- name: Install Docker
+  apt:
+    name: docker.io
+    state: present
+    update_cache: yes
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Install Docker SDK for Python
+  become: yes
+  apt:
+    name: python3-docker
+    state: present
+    update_cache: yes
+
+- name: Pull frontend Docker image
+  docker_image:
+    name: "{{ frontend_image }}"
+    source: pull
+
+- name: Run frontend container
+  docker_container:
+    name: dittopedia-frontend
+    image: "{{ frontend_image }}"
+    pull: true
+    state: started
+    restart_policy: always
+    ports:
+      - "{{ host_port }}:{{ container_port }}"
+    env:
+      # Next.js utilise souvent ce préfixe pour exposer les variables au client (navigateur)
+      NEXT_PUBLIC_API_URL: "{{ backend_url }}"
+      # Optionnel : si ton app utilise d'autres noms
+      API_URL: "{{ backend_url }}"
+
+- name: Healthcheck - wait for frontend
+  uri:
+    url: "http://localhost:80"  # Teste le port EXTERNE mappé (80)
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 15        # Augmente à 15 essais
+  delay: 10          # Attend 10 secondes entre chaque essai (total 2min30)

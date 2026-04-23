@@ -209,6 +209,7 @@
     container_default_behavior: compatibility
     name: dittopedia-backend
     image: "{{ backend_image }}"
+    pull: true
     state: started
     restart_policy: "{{ container_restart_policy }}"
     published_ports:
